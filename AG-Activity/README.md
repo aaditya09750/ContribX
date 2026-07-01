@@ -58,16 +58,28 @@ Execution Pipeline (per qualifying day):
 | Git | 2.x or higher | [git-scm.com/downloads](https://git-scm.com/downloads) |
 | GitHub Account | — | SSH or HTTPS authentication must be configured |
 
-### Step 1 — Clone the Repository
+### Step 1 — Clone the ContribX Repository
+
+Clone the ContribX tool from the source repository to your local machine:
 
 ```bash
 git clone https://github.com/aaditya09750/AG-ActivityGen.git
 cd AG-ActivityGen
 ```
 
-### Step 2 — Run the Script
+> **Important:** Do not fork this repository. GitHub does not count contributions made to forked repositories on your Contributions Graph. Instead, clone this repo to get the tool, then create your own new empty repository in Step 2.
 
-There are two primary modes of operation. Both generate commits targeting this `AG-Activity/README.md` file.
+### Step 2 — Create Your Own Repository on GitHub
+
+1. Go to [github.com/new](https://github.com/new) and create a **new, empty repository** on your GitHub account.
+2. Do **not** initialize it with a README, .gitignore, or license — the repository must be completely empty.
+3. Note the repository URL (e.g., `git@github.com:<your-username>/<your-repo>.git`).
+
+Replace `<your-username>` with your GitHub username and `<your-repo>` with your new repository name throughout all commands below.
+
+### Step 3 — Run the Script
+
+There are two primary modes of operation. The script generates commits and pushes them to **your own repository** (created in Step 2), populating your GitHub Contributions Graph.
 
 **Mode A: Generate and push automatically**
 
@@ -76,7 +88,7 @@ This is the recommended approach for most users. The script generates all commit
 ```bash
 python ag-activity-gen-main/contribute.py \
   --path=./AG-Activity \
-  --repository=git@github.com:aaditya09750/AG-ActivityGen.git
+  --repository=git@github.com:<your-username>/<your-repo>.git
 ```
 
 Execution summary:
@@ -104,7 +116,7 @@ Push when satisfied:
 git push origin main
 ```
 
-### Step 3 — Customize the Generation Parameters
+### Step 4 — Customize the Generation Parameters
 
 All parameters are optional. The defaults produce a realistic, dense contribution graph spanning the last 365 days.
 
@@ -116,7 +128,7 @@ python ag-activity-gen-main/contribute.py \
   --max_commits=5 \
   --frequency=60 \
   --no_weekends \
-  --repository=git@github.com:aaditya09750/AG-ActivityGen.git
+  --repository=git@github.com:<your-username>/<your-repo>.git
 ```
 
 **Targeted 30-day historical window with 10-day forward extension:**
@@ -126,7 +138,7 @@ python ag-activity-gen-main/contribute.py \
   --path=./AG-Activity \
   --days_before=30 \
   --days_after=10 \
-  --repository=git@github.com:aaditya09750/AG-ActivityGen.git
+  --repository=git@github.com:<your-username>/<your-repo>.git
 ```
 
 **Git identity override for single execution:**
@@ -134,15 +146,15 @@ python ag-activity-gen-main/contribute.py \
 ```bash
 python ag-activity-gen-main/contribute.py \
   --path=./AG-Activity \
-  --user_name="Aaditya Gunjal" \
-  --user_email="aadigunjal0975@gmail.com" \
-  --repository=git@github.com:aaditya09750/AG-ActivityGen.git
+  --user_name="Your Name" \
+  --user_email="your-github-email@example.com" \
+  --repository=git@github.com:<your-username>/<your-repo>.git
 ```
 
-### Step 4 — Verify the Results
+### Step 5 — Verify the Results
 
 1. Allow 2 to 5 minutes for GitHub to reindex contribution activity.
-2. Navigate to your [GitHub profile](https://github.com/aaditya09750) and inspect the Contributions Graph.
+2. Navigate to your GitHub profile and inspect the Contributions Graph.
 3. If the repository is private, confirm that private contribution visibility is enabled in your [profile settings](https://help.github.com/en/articles/publicizing-or-hiding-your-private-contributions-on-your-profile).
 4. Verify that your local Git email matches your GitHub account email:
    ```bash

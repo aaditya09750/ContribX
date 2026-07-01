@@ -98,20 +98,36 @@ ContribX/
 | Git | 2.x or higher | [git-scm.com/downloads](https://git-scm.com/downloads) |
 | GitHub Account | — | SSH or HTTPS authentication configured |
 
-### Step 1 — Clone the Repository
+### Step 1 — Clone This Repository
+
+Clone the ContribX tool to your local machine:
 
 ```bash
 git clone https://github.com/aaditya09750/AG-ActivityGen.git
 cd AG-ActivityGen
 ```
 
-### Step 2 — Execute the Script
+> **Important:** Do not fork this repository. GitHub does not count contributions made to forked repositories on your Contributions Graph. Instead, follow Steps 2 and 3 below to generate commits into your own repository.
 
-**Automatic mode (generates commits and pushes to remote):**
+### Step 2 — Create Your Own Repository on GitHub
+
+1. Go to [github.com/new](https://github.com/new) and create a **new, empty repository** on your GitHub account.
+2. Do **not** initialize it with a README, .gitignore, or license — the repository must be completely empty.
+3. Note the repository URL. It will be in one of these formats:
+   - SSH: `git@github.com:<your-username>/<your-repo>.git`
+   - HTTPS: `https://github.com/<your-username>/<your-repo>.git`
+
+Replace `<your-username>` with your GitHub username and `<your-repo>` with your new repository name throughout all commands below.
+
+### Step 3 — Run the Script
+
+**Automatic mode (generates commits and pushes to your repository):**
 
 ```bash
-python ag-activity-gen-main/contribute.py --repository=git@github.com:user/repo.git
+python ag-activity-gen-main/contribute.py --repository=git@github.com:<your-username>/<your-repo>.git
 ```
+
+This creates a new local directory, generates up to a year of backdated commits, and pushes them to your empty repository in a single operation.
 
 **Local mode (generates commits without pushing):**
 
@@ -119,25 +135,21 @@ python ag-activity-gen-main/contribute.py --repository=git@github.com:user/repo.
 python ag-activity-gen-main/contribute.py
 ```
 
-After local generation, push manually when ready:
+After local generation, add your remote and push manually:
 
 ```bash
-git push origin main
+git remote add origin git@github.com:<your-username>/<your-repo>.git
+git branch -M main
+git push -u origin main
 ```
 
-**Targeted mode (commits into the AG-Activity directory of this repository):**
-
-```bash
-python ag-activity-gen-main/contribute.py --path=./AG-Activity --repository=git@github.com:aaditya09750/AG-ActivityGen.git
-```
-
-### Step 3 — Verify
+### Step 4 — Verify
 
 1. Allow 2 to 5 minutes for GitHub to reindex contribution activity.
 2. Navigate to your GitHub profile and inspect the Contributions Graph.
 3. If the repository is private, confirm that private contribution visibility is enabled in your [GitHub profile settings](https://help.github.com/en/articles/publicizing-or-hiding-your-private-contributions-on-your-profile).
 
-> **Note:** GitHub attributes contributions based on the email address associated with each commit. Ensure your local Git email matches the email registered on your GitHub account.
+> **Important:** GitHub attributes contributions based on the email address associated with each commit. Ensure your local Git email matches the email registered on your GitHub account. If they differ, use the `--user_email` flag (see CLI Reference below).
 
 ---
 
@@ -175,37 +187,197 @@ ContribX operates through the following execution pipeline:
 | `-un` | `--user_name` | str | git config | Overrides the `user.name` Git configuration for this execution only. Useful when the global Git identity differs from the GitHub account that should receive the contribution credit. |
 | `-ue` | `--user_email` | str | git config | Overrides the `user.email` Git configuration for this execution only. This email must match the email address registered on the target GitHub account for contributions to be counted. |
 
-### Usage Examples
+### Usage Scenarios
 
-**Standard execution with default parameters (365 days, 80% frequency, up to 10 commits/day):**
+The following examples cover every common use case. All commands assume you have cloned this repository (Step 1) and created your own empty repository on GitHub (Step 2). Replace `<your-username>` with your GitHub username and `<your-repo>` with the name of your new empty repository in all commands below.
 
-```bash
-python ag-activity-gen-main/contribute.py --repository=git@github.com:user/repo.git
-```
+**Scenario 1 — Today only (single-day test run, local only)**
 
-**Reduced density with weekend exclusion:**
+Generates commits for the current day only. No historical commits, no push. Ideal for verifying the setup before a full run.
 
 ```bash
-python ag-activity-gen-main/contribute.py --max_commits=5 --frequency=60 --no_weekends --repository=git@github.com:user/repo.git
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=0 --days_after=1 --frequency=100 --max_commits=3
 ```
 
-**Targeted 30-day historical window with 10-day forward projection:**
+**Scenario 2 — Today only with auto-push**
+
+Same as above, but pushes the generated commits to the remote repository immediately after generation.
 
 ```bash
-python ag-activity-gen-main/contribute.py --days_before=30 --days_after=10 --repository=git@github.com:user/repo.git
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=0 --days_after=1 --frequency=100 --max_commits=3 --repository=git@github.com:<your-username>/<your-repo>.git
 ```
 
-**Execution against an existing local repository with identity override:**
+**Scenario 3 — Last 7 days (one-week backfill)**
+
+Populates the contribution graph for the past week. Useful for quick visual verification on a GitHub profile.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=7 --days_after=0 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 4 — Last 30 days (one-month backfill)**
+
+Fills the most recent month on the contribution graph with moderate density.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=30 --days_after=0 --frequency=70 --max_commits=8 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 5 — Last 90 days (quarterly backfill)**
+
+Covers the last three months. Reduces frequency slightly for a more organic pattern.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=90 --days_after=0 --frequency=65 --max_commits=6 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 6 — Full year (default parameters)**
+
+Standard execution with all defaults: 365 days, 80% frequency, up to 10 commits per day. This is the most common use case.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 7 — Full year with maximum density**
+
+Generates commits on 100% of days with up to 20 commits each. Produces the densest possible contribution graph.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=365 --days_after=0 --frequency=100 --max_commits=20 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 8 — Full year with sparse, realistic pattern**
+
+Lower frequency and fewer daily commits produce a natural-looking contribution history consistent with part-time or open-source development patterns.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=365 --days_after=0 --frequency=40 --max_commits=4 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 9 — Weekdays only (professional pattern)**
+
+Skips all Saturdays and Sundays. Produces a contribution graph that reflects a standard Monday-through-Friday development schedule.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --no_weekends --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 10 — Weekdays only with reduced volume**
+
+Combines weekend exclusion with lower frequency and commit count for a conservative, professional-looking graph.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --no_weekends --frequency=50 --max_commits=4 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 11 — Future-dated commits (forward scheduling)**
+
+Generates commits for the next 30 days. Useful for pre-populating upcoming contribution activity.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=0 --days_after=30 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 12 — Historical window with forward extension**
+
+Covers the last 30 days and extends 10 days into the future, creating a continuous contribution band across the present.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=30 --days_after=10 --repository=git@github.com:user/repo.git
+```
+
+**Scenario 13 — Local generation only (no auto-push)**
+
+Generates all commits locally without pushing. Allows inspection and manual review before pushing to a remote.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --days_before=30
+
+# Inspect the generated commits
+git log --oneline -20
+
+# Push manually when satisfied
+git push origin main
+```
+
+**Scenario 14 — Git identity override (single execution)**
+
+Overrides the Git user name and email for this run only, without modifying global Git configuration. Essential when the local Git identity differs from the target GitHub account.
 
 ```bash
 python ag-activity-gen-main/contribute.py \
   --path=./AG-Activity \
-  --user_name="Aaditya Gunjal" \
-  --user_email="aadigunjal0975@gmail.com" \
-  --repository=git@github.com:aaditya09750/AG-ActivityGen.git
+  --user_name="Your Name" \
+  --user_email="your-github-email@example.com" \
+  --repository=git@github.com:<your-username>/<your-repo>.git
 ```
 
-Run `python ag-activity-gen-main/contribute.py --help` for the complete help output.
+**Scenario 15 — HTTPS remote URL (instead of SSH)**
+
+If SSH is not configured, use the HTTPS format for the repository URL. Git will prompt for credentials or use a stored credential manager.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --repository=https://github.com/<your-username>/<your-repo>.git
+```
+
+**Scenario 16 — New standalone repository (no --path)**
+
+Creates a brand-new local repository, generates commits inside it, and pushes to a new empty remote. The target repository must be empty and not initialized.
+
+```bash
+python ag-activity-gen-main/contribute.py --repository=git@github.com:<your-username>/<your-new-repo>.git
+```
+
+**Scenario 17 — Combined: full year, weekdays, reduced density, identity override, auto-push**
+
+A complete production-grade command combining all major options for a realistic, professional contribution graph.
+
+```bash
+python ag-activity-gen-main/contribute.py \
+  --path=./AG-Activity \
+  --days_before=365 \
+  --days_after=0 \
+  --frequency=55 \
+  --max_commits=6 \
+  --no_weekends \
+  --user_name="Your Name" \
+  --user_email="your-github-email@example.com" \
+  --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+### Windows PowerShell Note
+
+On Windows PowerShell, multi-line commands use the backtick (`` ` ``) as the line continuation character instead of the backslash (`\`):
+
+```powershell
+python ag-activity-gen-main/contribute.py `
+  --path=./AG-Activity `
+  --days_before=365 `
+  --no_weekends `
+  --frequency=55 `
+  --max_commits=6 `
+  --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+Alternatively, write the entire command on a single line to avoid continuation characters entirely.
+
+### Post-Execution Verification
+
+After any of the above commands, verify the results:
+
+```bash
+# Check the most recent commits in the log
+git log --oneline -10
+
+# Count total commits in the repository
+git rev-list --count HEAD
+
+# View the contribution entries appended to the target file
+tail -20 AG-Activity/README.md
+```
+
+Run `python ag-activity-gen-main/contribute.py --help` for the complete built-in help output.
 
 ---
 
