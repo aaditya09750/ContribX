@@ -9,6 +9,25 @@ from random import randint
 from subprocess import Popen
 
 
+def find_git_root(start_path):
+    """
+    Walk upward from start_path until a .git directory or .git file is found.
+    Returns the repository root directory if found, otherwise None.
+    """
+    current = os.path.abspath(start_path)
+
+    while True:
+        git_path = os.path.join(current, ".git")
+        if os.path.isdir(git_path) or os.path.isfile(git_path):
+            return current
+
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+
+        current = parent
+
+
 def main(def_args=sys.argv[1:]):
     args = arguments(def_args)
 
@@ -20,27 +39,29 @@ def main(def_args=sys.argv[1:]):
     user_email = args.user_email
 
     directory = "repository-" + curr_date.strftime("%Y-%m-%d-%H-%M-%S")
+    target_directory = None
+    repo_root = None
 
     # Use existing local repository when --path is provided.
     if local_path:
-        directory = os.path.abspath(local_path)
+        target_directory = os.path.abspath(local_path)
 
-        if not os.path.exists(directory):
-            sys.exit(f"Directory does not exist:\n{directory}")
+        if not os.path.exists(target_directory):
+            sys.exit(f"Directory does not exist:\n{target_directory}")
 
-        if not os.path.isdir(directory):
-            sys.exit(f"Not a directory:\n{directory}")
+        if not os.path.isdir(target_directory):
+            sys.exit(f"Not a directory:\n{target_directory}")
 
-        git_directory = os.path.join(directory, ".git")
-
-        if not os.path.isdir(git_directory):
+        # Find the nearest parent git repository.
+        repo_root = find_git_root(target_directory)
+        if repo_root is None:
             sys.exit(
-                "The specified path is not an existing Git repository:\n"
-                f"{directory}\n\n"
-                "Clone or initialize the repository first."
+                "The specified path is not inside an existing Git repository:\n"
+                f"{target_directory}\n\n"
+                "Please clone or initialize the repository first."
             )
 
-        os.chdir(directory)
+        os.chdir(repo_root)
 
     # Original behavior when --path is not provided.
     else:
@@ -53,6 +74,8 @@ def main(def_args=sys.argv[1:]):
             os.mkdir(directory)
 
         os.chdir(directory)
+        repo_root = os.getcwd()
+        target_directory = repo_root
 
         if not os.path.exists(".git"):
             run(["git", "init", "-b", "main"])
@@ -83,11 +106,14 @@ def main(def_args=sys.argv[1:]):
                 day + timedelta(minutes=m)
                 for m in range(contributions_per_day(args))
             ):
-                contribute(commit_time)
+                contribute(commit_time, target_directory)
 
     # Push to remote when repository is provided.
     if repository:
-        remotes = subprocess.check_output(["git", "remote"], text=True).strip().splitlines()
+        remotes = subprocess.check_output(
+            ["git", "remote"],
+            text=True
+        ).strip().splitlines()
 
         if "origin" not in remotes:
             run(["git", "remote", "add", "origin", repository])
@@ -103,8 +129,10 @@ def main(def_args=sys.argv[1:]):
     )
 
 
-def contribute(date):
-    with open(os.path.join(os.getcwd(), "README.md"), "a", encoding="utf-8") as file:
+def contribute(date, target_directory):
+    readme_path = os.path.join(target_directory, "README.md")
+
+    with open(readme_path, "a", encoding="utf-8") as file:
         file.write(message(date) + "\n\n")
 
     run(["git", "add", "."])
@@ -189,8 +217,8 @@ For example: git@github.com:user/repo.git or https://github.com/user/repo.git"""
         "--path",
         type=str,
         required=False,
-        help="""Path to an existing local Git repository.
-If specified, the script uses this repository instead of creating a new one."""
+        help="""Path to a local folder inside an existing Git repository.
+If specified, the script will find the nearest parent repository and use it."""
     )
 
     parser.add_argument(
