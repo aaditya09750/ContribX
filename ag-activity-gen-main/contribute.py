@@ -8,6 +8,39 @@ from datetime import datetime, timedelta
 from random import randint
 from subprocess import Popen
 
+# Global flag for conventional commits format
+CONVENTIONAL_COMMITS = False
+
+
+def parse_specific_dates(date_string, date_format="%Y-%m-%d"):
+    """
+    Parse a comma-separated string of dates into a list of datetime objects.
+    Returns a list of datetime objects or None if parsing fails.
+    """
+    if not date_string:
+        return None
+    
+    dates = []
+    date_list = [d.strip() for d in date_string.split(",")]
+    
+    if not date_list:
+        sys.exit("No dates provided in --specific-dates")
+    
+    for date_str in date_list:
+        try:
+            parsed_date = datetime.strptime(date_str, date_format)
+            # Set time to 20:00 to match start_date behavior
+            parsed_date = parsed_date.replace(hour=20, minute=0)
+            dates.append(parsed_date)
+        except ValueError as e:
+            sys.exit(
+                f"Invalid date format: '{date_str}'\n"
+                f"Expected format: {date_format}\n"
+                f"Error: {e}"
+            )
+    
+    return sorted(dates) if dates else None
+
 
 def find_git_root(start_path):
     """
@@ -88,25 +121,49 @@ def main(def_args=sys.argv[1:]):
         run(["git", "config", "user.email", user_email])
 
     no_weekends = args.no_weekends
+    specific_dates_str = args.specific_dates
+    date_format = args.date_format
     frequency = args.frequency
     days_before = args.days_before
     days_after = args.days_after
+    
+    # Set global flag for conventional commits
+    global CONVENTIONAL_COMMITS
+    CONVENTIONAL_COMMITS = args.conventional_commits
 
-    if days_before < 0:
-        sys.exit("days_before must not be negative")
+    # Handle specific dates mode
+    if specific_dates_str:
+        specific_dates = parse_specific_dates(specific_dates_str, date_format)
+        
+        if not specific_dates:
+            sys.exit("No valid dates could be parsed from --specific-dates")
+        
+        # Generate commits for each specific date
+        for day in specific_dates:
+            # Respect no_weekends flag even in specific dates mode
+            if not no_weekends or day.weekday() < 5:
+                for commit_time in (
+                    day + timedelta(minutes=m)
+                    for m in range(contributions_per_day(args))
+                ):
+                    contribute(commit_time, target_directory)
+    else:
+        # Original date range mode
+        if days_before < 0:
+            sys.exit("days_before must not be negative")
 
-    if days_after < 0:
-        sys.exit("days_after must not be negative")
+        if days_after < 0:
+            sys.exit("days_after must not be negative")
 
-    start_date = curr_date.replace(hour=20, minute=0) - timedelta(days_before)
+        start_date = curr_date.replace(hour=20, minute=0) - timedelta(days_before)
 
-    for day in (start_date + timedelta(n) for n in range(days_before + days_after)):
-        if (not no_weekends or day.weekday() < 5) and randint(0, 100) < frequency:
-            for commit_time in (
-                day + timedelta(minutes=m)
-                for m in range(contributions_per_day(args))
-            ):
-                contribute(commit_time, target_directory)
+        for day in (start_date + timedelta(n) for n in range(days_before + days_after)):
+            if (not no_weekends or day.weekday() < 5) and randint(0, 100) < frequency:
+                for commit_time in (
+                    day + timedelta(minutes=m)
+                    for m in range(contributions_per_day(args))
+                ):
+                    contribute(commit_time, target_directory)
 
     # Push to remote when repository is provided.
     if repository:
@@ -152,7 +209,15 @@ def run(commands):
 
 
 def message(date):
-    return date.strftime("Contribution: %Y-%m-%d %H:%M")
+    """
+    Generate commit message in either conventional or legacy format.
+    Conventional format: feat: contribution on YYYY-MM-DD HH:MM
+    Legacy format: Contribution: YYYY-MM-DD HH:MM
+    """
+    if CONVENTIONAL_COMMITS:
+        return date.strftime("feat: contribution on %Y-%m-%d %H:%M")
+    else:
+        return date.strftime("Contribution: %Y-%m-%d %H:%M")
 
 
 def contributions_per_day(args):
@@ -259,6 +324,43 @@ commit date will be the current date minus 30 days."""
         help="""Specifies the number of days after the current date until which
 the script will be adding commits. For example: if it is set to 30 the last
 commit will be on a future date which is the current date plus 30 days."""
+    )
+
+    parser.add_argument(
+        "-sd",
+        "--specific-dates",
+        type=str,
+        required=False,
+        default=None,
+        help="""Comma-separated list of specific dates to generate commits on.
+For example: 2026-09-13,2026-09-14 or 09/13/2026,09/14/2026
+When specified, --days_before, --days_after, and --frequency are ignored.
+Date format is controlled by --date-format (default: YYYY-MM-DD).
+The --max_commits parameter still controls commits per day.
+The --no_weekends flag is still respected if enabled."""
+    )
+
+    parser.add_argument(
+        "-df",
+        "--date-format",
+        type=str,
+        required=False,
+        default="%Y-%m-%d",
+        help="""Date format string for --specific-dates parsing.
+Default is YYYY-MM-DD (%%Y-%%m-%%d).
+Other examples: %%m/%%d/%%Y for MM/DD/YYYY or %%d-%%m-%%Y for DD-MM-YYYY"""
+    )
+
+    parser.add_argument(
+        "-cc",
+        "--conventional-commits",
+        required=False,
+        action="store_true",
+        default=False,
+        help="""Use conventional commit format (feat:, fix:, etc.).
+Default format: 'Contribution: YYYY-MM-DD HH:MM'
+Conventional format: 'feat: contribution on YYYY-MM-DD HH:MM'
+Ideal for professional repositories following commit conventions."""
     )
 
     return parser.parse_args(argsval)
