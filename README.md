@@ -40,10 +40,57 @@ The screenshots above illustrate the transformation of a GitHub profile's contri
 - **Adjustable Daily Commit Volume:** The maximum number of commits per day is configurable (1 to 20). The actual count for each day is randomly selected between 1 and the configured maximum, producing organic variation in the graph.
 - **Weekend Exclusion:** An optional flag (`--no_weekends`) suppresses all commit generation on Saturdays and Sundays, producing a weekday-only contribution pattern consistent with professional development workflows.
 - **Flexible Date Range Control:** The `--days_before` and `--days_after` parameters allow precise control over the start and end boundaries of the commit window relative to the current date, enabling targeted graph population for specific time periods.
+- **Specific Date Targeting:** New `--specific-dates` parameter enables precise targeting of exact dates for commit generation. Accepts comma-separated dates in customizable formats (e.g., "2026-09-13,2026-09-14" or "09/13/2026,09/14/2026"). When specified, date range parameters are ignored, allowing surgical precision over contribution timing.
+- **Conventional Commits Support:** New `--conventional-commits` flag generates commits following the conventional commits specification (e.g., "feat: contribution on YYYY-MM-DD HH:MM"). Ideal for professional repositories that enforce commit message standards.
 - **Existing Repository Support:** The `--path` parameter allows ContribX to operate within an already-initialized local Git repository, finding the nearest parent `.git` root automatically. This enables incremental contribution additions without creating a new repository.
 - **Automatic Remote Push:** When a `--repository` URL is provided (SSH or HTTPS format), the script automatically configures the remote origin, renames the branch to `main`, and pushes all generated commits in a single operation.
 - **Per-Run Git Identity Overrides:** The `--user_name` and `--user_email` parameters override the local Git configuration for the current execution only, without modifying the global Git settings. This ensures the generated commits are attributed to the correct GitHub account.
 - **Continuous Integration:** A GitHub Actions workflow validates code quality (flake8 linting) and functional correctness (unittest) across Python versions 3.8, 3.9, 3.10, and 3.11 on every push and pull request.
+
+---
+
+## New Features (v2.0)
+
+This release introduces powerful new capabilities for targeted contribution generation and professional commit formatting:
+
+### Specific Date Targeting (`--specific-dates`)
+
+Generate commits on **exact dates only**, bypassing the random date range logic. Perfect for:
+- Backfilling specific dates in your contribution graph
+- Creating targeted contribution patterns
+- Professional contribution records with precise control
+
+**Example:** Generate commits only on September 13th and 14th:
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --specific-dates="2026-09-13,2026-09-14" --max_commits=5
+```
+
+**Supported Date Formats:**
+- Default: `YYYY-MM-DD` (e.g., `2026-09-13`)
+- Custom formats via `--date-format`, e.g., `%m/%d/%Y` for `09/13/2026`
+- Comma-separated dates: `2026-09-13,2026-09-14,2026-09-15`
+
+When using `--specific-dates`:
+- `--days_before`, `--days_after`, and `--frequency` are **ignored**
+- `--max_commits` and `--no_weekends` are still **respected**
+- Dates are automatically sorted and deduplicated
+
+### Conventional Commits Support (`--conventional-commits`)
+
+Generate commits following the **Conventional Commits** specification for professional development workflows:
+
+- **Default format:** `Contribution: YYYY-MM-DD HH:MM`
+- **Conventional format:** `feat: contribution on YYYY-MM-DD HH:MM`
+
+The conventional format is ideal for:
+- Professional repositories with commit message linting (commitlint, husky)
+- Teams using semantic versioning and automated changelog generation
+- CI/CD pipelines that parse commit messages for release automation
+
+**Example:** Generate conventional commits on specific dates:
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --specific-dates="2026-09-13,2026-09-14" --conventional-commits
+```
 
 ---
 
@@ -159,11 +206,11 @@ ContribX operates through the following execution pipeline:
 
 1. **Repository Initialization:** If no `--path` is provided, the script creates a new directory and initializes an empty Git repository with `git init -b main`. If `--path` is provided, it traverses upward from the specified directory to locate the nearest `.git` root.
 
-2. **Commit Generation Loop:** For each day in the configured date range (default: 365 days before the current date), the script evaluates two conditions:
-   - The day passes the frequency probability check (default: 80% chance).
-   - If `--no_weekends` is enabled, the day is a weekday (Monday through Friday).
+2. **Commit Generation Loop:** The script supports two modes:
+   - **Range Mode (default):** For each day in the configured date range (default: 365 days before the current date), the script evaluates two conditions: the day passes the frequency probability check (default: 80% chance), and if `--no_weekends` is enabled, the day is a weekday (Monday through Friday).
+   - **Specific Dates Mode:** When `--specific-dates` is provided, the script iterates through only the specified dates, ignoring frequency and date range parameters, while still respecting `--no_weekends` and `--max_commits` settings.
 
-3. **File Modification:** For each qualifying day, a random number of commits (between 1 and `--max_commits`) are generated. Each commit appends a timestamped line to the target `README.md` file in the format `Contribution: YYYY-MM-DD HH:MM`.
+3. **File Modification:** For each qualifying day, a random number of commits (between 1 and `--max_commits`) are generated. Each commit appends a timestamped line to the target `README.md` file. The commit message format depends on the selected mode:\n   - **Legacy Format (default):** `Contribution: YYYY-MM-DD HH:MM`\n   - **Conventional Format:** `feat: contribution on YYYY-MM-DD HH:MM` (when `--conventional-commits` is enabled)
 
 4. **Backdated Commit Creation:** Each modification is staged with `git add .` and committed with `git commit --date`, setting the commit timestamp to the target day. This causes GitHub to render the commit on the corresponding day in the Contributions Graph.
 
@@ -186,6 +233,9 @@ ContribX operates through the following execution pipeline:
 | `-p` | `--path` | str | none | Absolute or relative path to a directory inside an existing Git repository. The script will locate the nearest parent `.git` root and use it as the working repository. The specified directory must exist and must be within an initialized Git repository. |
 | `-un` | `--user_name` | str | git config | Overrides the `user.name` Git configuration for this execution only. Useful when the global Git identity differs from the GitHub account that should receive the contribution credit. |
 | `-ue` | `--user_email` | str | git config | Overrides the `user.email` Git configuration for this execution only. This email must match the email address registered on the target GitHub account for contributions to be counted. |
+| `-sd` | `--specific-dates` | str | none | Comma-separated list of specific dates to generate commits on. When specified, `--days_before`, `--days_after`, and `--frequency` are ignored. Supports custom date formats via `--date-format`. Example: `2026-09-13,2026-09-14` or `09/13/2026,09/14/2026`. The `--max_commits` and `--no_weekends` parameters are still respected. |
+| `-df` | `--date-format` | str | %Y-%m-%d | Date format string for parsing dates in `--specific-dates`. Default is YYYY-MM-DD. Other examples: `%m/%d/%Y` for MM/DD/YYYY or `%d-%m-%Y` for DD-MM-YYYY. Follows Python's strftime format. |
+| `-cc` | `--conventional-commits` | flag | false | When set, commits are generated using conventional commits format (e.g., "feat: contribution on YYYY-MM-DD HH:MM") instead of the default legacy format. Ideal for professional repositories following commit conventions. |
 
 ### Usage Scenarios
 
@@ -346,6 +396,46 @@ python ag-activity-gen-main/contribute.py \
   --repository=git@github.com:<your-username>/<your-repo>.git
 ```
 
+**Scenario 18 — Specific dates only (Sept 13-14)**
+
+Generates commits on specific dates only, ignoring date range parameters. Perfect for targeted contribution backfill.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --specific-dates="2026-09-13,2026-09-14" --max_commits=3 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 19 — Specific dates with custom date format**
+
+Uses a custom date format for parsing specific dates (MM/DD/YYYY instead of YYYY-MM-DD).
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --specific-dates="09/13/2026,09/14/2026" --date-format="%m/%d/%Y" --max_commits=3 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 20 — Specific dates with conventional commits**
+
+Generates commits on specific dates with conventional commit messages ("feat: contribution on...").
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --specific-dates="2026-09-13,2026-09-14" --conventional-commits --max_commits=3 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 21 — Multiple specific dates with professional settings**
+
+Targets specific dates with weekday-only filtering and conventional commits for professional repositories.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --specific-dates="2026-09-13,2026-09-14,2026-09-15" --no_weekends --conventional-commits --max_commits=4 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
+**Scenario 22 — Conventional commits with full year**
+
+Generates a full year of backdated commits using conventional commit format for professional development records.
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --conventional-commits --no_weekends --frequency=60 --max_commits=5 --repository=git@github.com:<your-username>/<your-repo>.git
+```
+
 ### Windows PowerShell Note
 
 On Windows PowerShell, multi-line commands use the backtick (`` ` ``) as the line continuation character instead of the backslash (`\`):
@@ -451,6 +541,104 @@ Ensure the target repository is empty and not previously initialized. If using `
 ### Persistent Issues
 
 If the above steps do not resolve the issue, open a detailed bug report on the [GitHub Issues](https://github.com/aaditya09750/AG-ActivityGen/issues) page, including the full command used, the error output, and the Python and Git versions installed.
+
+---
+
+## Upgrading ContribX
+
+To get the latest features and bug fixes, pull the latest version:
+
+```bash
+cd AG-ActivityGen
+git pull origin main
+```
+
+### What's New in v2.0
+
+- Specific date targeting with `--specific-dates` parameter
+- Custom date format support with `--date-format` parameter  
+- Conventional commits with `--conventional-commits` flag
+- Enhanced unit tests covering new functionality
+- Improved documentation with new usage scenarios
+
+### Backward Compatibility
+
+v2.0 is **100% backward compatible**. All existing commands continue to work without modification. The new features are entirely optional.
+
+---
+
+## FAQ: New Features
+
+### Q: How is `--specific-dates` different from `--days_before`?
+
+**A:** `--days_before` creates a date range and randomly selects days based on frequency. `--specific-dates` targets **exact dates only**:
+
+```bash
+# Range: commits on random days in the last 10 days (80% frequency)
+--days_before=10 --frequency=80
+
+# Specific: commits on exactly Sept 13 and 14 (every specified day gets commits)
+--specific-dates="2026-09-13,2026-09-14"
+```
+
+### Q: Can I combine `--specific-dates` with `--days_before`?
+
+**A:** No. When `--specific-dates` is provided, `--days_before`, `--days_after`, and `--frequency` are **ignored**. Choose one approach:
+- Use date ranges (original behavior)
+- Use specific dates (new behavior)
+
+### Q: What happens if I specify a weekend date with `--no_weekends`?
+
+**A:** The date is **skipped**. For example:
+```bash
+--specific-dates="2026-09-13,2026-09-14,2026-09-15" --no_weekends
+```
+If Sept 13-14 are weekdays, they get commits. If Sept 15 is Saturday, it's skipped.
+
+### Q: How do I use conventional commits?
+
+**A:** Add the `--conventional-commits` flag:
+
+```bash
+python ag-activity-gen-main/contribute.py --path=./AG-Activity --conventional-commits
+```
+
+This changes commit messages from:
+- `Contribution: 2026-09-13 14:30` (legacy format)
+- `feat: contribution on 2026-09-13 14:30` (conventional format)
+
+### Q: Can I use conventional commits with a custom date format?
+
+**A:** Yes! Combine all options:
+
+```bash
+python ag-activity-gen-main/contribute.py \\
+  --path=./AG-Activity \\
+  --specific-dates=\"09/13/2026,09/14/2026\" \\
+  --date-format=\"%m/%d/%Y\" \\
+  --conventional-commits \\
+  --max_commits=3
+```
+
+### Q: What date formats are supported?
+
+**A:** Any Python `strftime` format string. Common examples:
+
+| Format | Example | Python Code |
+| ------ | ------- | ----------- |
+| YYYY-MM-DD | 2026-09-13 | `%Y-%m-%d` (default) |
+| MM/DD/YYYY | 09/13/2026 | `%m/%d/%Y` |
+| DD-MM-YYYY | 13-09-2026 | `%d-%m-%Y` |
+| MM-DD-YY | 09-13-26 | `%m-%d-%y` |
+
+Example:
+```bash
+--specific-dates=\"13-09-2026,14-09-2026\" --date-format=\"%d-%m-%Y\"
+```
+
+---
+
+## Persistent Issues
 
 ---
 
